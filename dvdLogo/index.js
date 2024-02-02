@@ -5,7 +5,7 @@ const block = {
     y: canvas.height / 2,
     vx: 0,
     vy: 0,
-    speed: 5,
+    speed: 100,
     width: 75,
     height: 45,
     color: `hsl(${Math.random() * 360 | 0}, 50%, 50%)`

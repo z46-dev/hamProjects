@@ -1,7 +1,5 @@
 import { canvas, ctx, lerp } from "../canvas.js";
 
-let interval = null;
-
 const particleCount = 2 ** 16;
 const xPositions = new Float32Array(particleCount);
 const yPositions = new Float32Array(particleCount);
