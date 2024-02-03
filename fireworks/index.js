@@ -1,94 +1,195 @@
-import { canvas, ctx, lerp } from "../canvas.js";
-
-const missiles = {};
-const particles = {};
-let id = 0;
+import { canvas, ctx, lerp, uiScale } from "../canvas.js";
 
 class Particle {
-    constructor(parent, angle) {
-        this.x = parent.x;
-        this.y = parent.y;
-        this.vx = Math.cos(angle);
-        this.vy = Math.sin(angle);
-        this.color = parent.color;
-        this.alpha = parent.alpha;
-        this.size = parent.size / 3;
-        this.maxTick = Math.random() * 100 + 100;
-        this.tick = this.maxTick;
-        this.id = id++;
-        particles[this.id] = this;
+    static id = 0;
+    static particles = new Map();
+
+    static gravity = .05;
+
+    constructor(x, y, size) {
+        this.id = Particle.id++;
+
+        this.x = x;
+        this.y = y;
+
+        this.size = size;
+
+        this.velocityX = 0;
+        this.velocityY = 0;
+        this.antiGravity = 0;
+
+        this.hue = Math.random() * 360;
+        this.fade = 1;
+
+        Particle.particles.set(this.id, this);
     }
-    move() {
-        this.vy = lerp(this.vy, 1, .01);
-        this.x += this.vx * 3;
-        this.y += this.vy * 3;
-        this.alpha = this.tick / this.maxTick;
-        if (--this.tick < 0) {
-            delete particles[this.id];
+
+    update() {
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        this.fade -= .005 * (Math.sin(this.antiGravity * Math.PI * 2) * .5 + .5);
+
+        this.velocityY += Particle.gravity - this.antiGravity;
+
+        if (this.y > canvas.height || this.fade < .01) {
+            Particle.particles.delete(this.id);
         }
     }
+
     draw() {
-        ctx.save();
-        ctx.globalAlpha = this.alpha;
-        ctx.translate(this.x, this.y);
+        ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
+        ctx.globalAlpha = this.fade;
         ctx.beginPath();
-        ctx.arc(0, 0, this.size, 0, Math.PI * 2, true);
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.closePath();
-        ctx.fillStyle = this.color;
         ctx.fill();
-        ctx.restore();
+        ctx.globalAlpha = 1;
     }
 }
-class Missile {
+
+class Firework {
+    static id = 0;
+    static fireworks = new Map();
+
     constructor() {
-        this.x = innerWidth / 4 + Math.random() * innerWidth / 2;
-        this.y = innerHeight;
-        this.vx = Math.random() - .5;
-        this.vy = -1;
-        this.size = 5 + Math.random() * 5;
-        this.color = '#' + (Math.random() * 0xFFFFFF << 0).toString(16);
-        this.id = id++;
-        missiles[this.id] = this;
+        this.id = Firework.id++;
+
+        const scale = uiScale();
+
+        this.x = Math.random() * canvas.width / scale;
+        this.y = canvas.height / scale;
+
+        this.size = 3 + Math.random() * 4;
+
+        this.velocityDirection = Math.random() * Math.PI * .5 + Math.PI * .25 + Math.PI;
+        this.velocityLength = Math.random() * 10 + 30;
+
+        this.hue = Math.random() * 360;
+
+        Firework.fireworks.set(this.id, this);
     }
-    move() {
-        this.x += this.vx * 5;
-        this.y += this.vy * 5;
-        if (this.y < innerHeight / 2 && Math.random() > .9 + (this.y / innerWidth / 2) / 1.5) {
-            for (let i = 0, l = Math.random() * 11 + 5; i < l; i++) {
-                new Particle(this, (Math.PI * 2) / l * i);
+
+    update() {
+        this.x += Math.cos(this.velocityDirection) * this.velocityLength;
+        this.y += Math.sin(this.velocityDirection) * this.velocityLength;
+
+        this.velocityLength *= .95;
+
+        if (this.velocityLength < .05) {
+            Firework.fireworks.delete(this.id);
+
+            switch (Math.random() * 3 | 0) {
+                case 0:
+                    Firework.basicExplosion(this);
+                    break;
+                case 1:
+                    Firework.ringExplosion(this);
+                    break;
+                case 2:
+                    Firework.delayedExplosion(this);
+                    break;
             }
-            delete missiles[this.id];
         }
     }
+
     draw() {
-        ctx.save();
-        ctx.globalAlpha = this.alpha;
-        ctx.translate(this.x, this.y);
+        ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
         ctx.beginPath();
-        ctx.arc(0, 0, this.size, 0, Math.PI * 2, true);
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.closePath();
-        ctx.fillStyle = this.color;
         ctx.fill();
-        ctx.restore();
+    }
+
+    /**
+     * @param {Firework} firework 
+     */
+    static basicExplosion(firework) {
+        for (let i = 0; i < 8 + Math.random() * 32 | 0; i++) {
+            const particle = new Particle(firework.x, firework.y, firework.size / 2);
+            particle.velocityX = Math.random() * 6 - 3;
+            particle.velocityY = Math.random() * 6 - 3;
+            particle.hue = firework.hue + Math.random() * 30 - 15;
+            particle.antiGravity = Math.random() * .03;
+        }
+    }
+
+    /**
+     * @param {Firework} firework 
+     */
+    static ringExplosion(firework) {
+        let hue = firework.hue + Math.random() * 30 - 15;
+
+        for (let i = 0; i < 1 + Math.random() * 3 | 0; i++) {
+            const ringWidth = Math.random() * 2 + .5;
+            const ringHeight = Math.random() * 2 + .5;
+            const ringAngle = Math.random() * Math.PI * 2;
+            const ringCount = 8 + Math.random() * 16 | 0;
+
+            for (let j = 0; j < ringCount; j++) {
+                const particle = new Particle(firework.x, firework.y, firework.size / 2);
+                particle.velocityX = Math.cos(ringAngle + j / ringCount * Math.PI * 2) * ringWidth;
+                particle.velocityY = Math.sin(ringAngle + j / ringCount * Math.PI * 2) * ringHeight;
+                particle.hue = hue + Math.random() * 30 - 15;
+                particle.antiGravity = Particle.gravity * .99;
+            }
+
+            hue += 30;
+        }
+    }
+
+    /**
+     * @param {Firework} firework 
+     */
+    static delayedExplosion(firework) {
+        const count = 8 + Math.random() * 16 | 0;
+        const delay = 20 + Math.random() * 31 | 0;
+
+        let hue = firework.hue + Math.random() * 30 - 15;
+
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const particle = new Particle(firework.x, firework.y, firework.size / 2);
+                const angle = Math.PI * 2 / count * i;
+
+                particle.velocityX = Math.cos(angle) * 3;
+                particle.velocityY = Math.sin(angle) * 3;
+
+                particle.hue = hue;
+
+                hue += Math.random() * 10;
+            }, i * delay);
+        }
     }
 }
 
 function drawLoop() {
     requestAnimationFrame(drawLoop);
-    ctx.fillStyle = "rgba(0, 0, 0, .175)";
+    ctx.fillStyle = "rgba(0, 0, 0, .1)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    if (Object.keys(missiles).length < 10 && Math.random() > .95) {
-        new Missile();
-    }
-    for (const id in missiles) {
-        const missile = missiles[id];
-        missile.move();
-        missile.draw();
-    }
-    for (const id in particles) {
-        const particle = particles[id];
-        particle.move();
+
+    const scale = uiScale();
+
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    Firework.fireworks.forEach(firework => {
+        firework.update();
+        firework.draw();
+    });
+
+    Particle.particles.forEach(particle => {
+        particle.update();
         particle.draw();
+    });
+
+    ctx.restore();
+
+    if (Firework.fireworks.size < 8 && Math.random() < .1) {
+        new Firework();
     }
 }
 

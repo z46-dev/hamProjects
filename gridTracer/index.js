@@ -152,7 +152,7 @@ let hue = 0;
 function draw() {
     requestAnimationFrame(draw);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(0, 0, 0, .025)";
+    ctx.fillStyle = "rgba(0, 0, 0, .05)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const scale = uiScale();

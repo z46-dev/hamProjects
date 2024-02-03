@@ -47,7 +47,7 @@ class Particle {
         if (this.isIdle) {
             ctx.globalAlpha = .5;
         }
-        
+
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.closePath();
@@ -131,10 +131,6 @@ function change(text) {
             i++;
         }
     }
-
-    if (Particle.particles.size < goals.points.length + 125) {
-        for (let i = Particle.particles.size; i < goals.points.length + 250; i++) new Particle();
-    }
 }
 
 change("Press enter to change the text!");
@@ -153,21 +149,35 @@ function drawLoop() {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(scale, scale);
 
-    let i = 0;
-    Particle.particles.forEach(p => {
-        if (i >= goals.points.length) {
-            p.isIdle = true;
-            p.idlyUpdate(canvas.width / scale, canvas.height / scale);
-        } else {
-            p.isIdle = false;
-            const goal = goals.points[i % goals.points.length];
-            p.update(goal.x - goals.width / 2, goal.y - goals.height / 2);
+    if (Particle.particles.size < goals.points.length + 250) {
+        const diff = goals.points.length + 250 - Particle.particles.size;
+
+        for (let i = 0; i < Math.max(1, diff / 10); i++) {
+            new Particle();
         }
 
-        p.draw();
+        Particle.particles.forEach(p => {
+            p.isIdle = true;
+            p.idlyUpdate(canvas.width / scale, canvas.height / scale);
+            p.draw();
+        });
+    } else {
+        let i = 0;
+        Particle.particles.forEach(p => {
+            if (i >= goals.points.length) {
+                p.isIdle = true;
+                p.idlyUpdate(canvas.width / scale, canvas.height / scale);
+            } else {
+                p.isIdle = false;
+                const goal = goals.points[i % goals.points.length];
+                p.update(goal.x - goals.width / 2, goal.y - goals.height / 2);
+            }
 
-        i++;
-    });
+            p.draw();
+
+            i++;
+        });
+    }
 
     ctx.restore();
 }
