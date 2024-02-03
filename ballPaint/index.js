@@ -1,4 +1,4 @@
-import { canvas, ctx, lerp } from "../canvas.js";
+import { canvas, ctx, lerp, uiScale } from "../canvas.js";
 
 class Particle {
     static id = 0;
@@ -7,9 +7,16 @@ class Particle {
     constructor() {
         this.id = Particle.id++;
 
-        this.x = Math.random() * canvas.width | 0;
-        this.y = Math.random() * canvas.height | 0;
+        const scale = uiScale();
+
+        this.x = Math.random() * canvas.width / scale - canvas.width / scale / 2;
+        this.y = Math.random() * canvas.height / scale - canvas.height / scale / 2;
+
         this.size = 1;
+
+        this.velocityDirection = Math.random() * Math.PI * 2;
+        this.velocityLength = Math.random() * 2 + 1;
+        this.isIdle = false;
 
         Particle.particles.set(this.id, this);
     }
@@ -19,11 +26,34 @@ class Particle {
         this.y = lerp(this.y, gy, .1);
     }
 
+    idlyUpdate(gW, gH) {
+        this.x += Math.cos(this.velocityDirection) * this.velocityLength;
+        this.y += Math.sin(this.velocityDirection) * this.velocityLength;
+
+        this.velocityLength *= .95;
+
+        if (this.velocityLength < .05) {
+            this.velocityDirection = Math.random() * Math.PI * 2;
+            this.velocityLength = Math.random() * 2 + 1;
+        }
+
+        if (this.x < -gW / 2 || this.x > gW / 2 || this.y < -gH / 2 || this.y > gH / 2) {
+            this.x = Math.random() * gW - gW / 2;
+            this.y = Math.random() * gH - gH / 2;
+        }
+    }
+
     draw() {
+        if (this.isIdle) {
+            ctx.globalAlpha = .5;
+        }
+        
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.closePath();
         ctx.fill();
+
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -33,7 +63,7 @@ function buildLetters(letters) {
     const cvs = new OffscreenCanvas(64 * letters.length, 64);
     const c = cvs.getContext("2d");
 
-    c.font = "bold 32px monospace";
+    c.font = "bold 64px monospace";
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillText(letters, cvs.width / 2, 32);
@@ -68,6 +98,7 @@ function buildLetters(letters) {
         if (x >= cvs.width) {
             x = 0;
             y += gap;
+            i += gap * cvs.width * 4;
         }
     }
 
@@ -81,16 +112,32 @@ function buildLetters(letters) {
     };
 }
 
-const goals = buildLetters("Type something to change!");
+const goals = [];
 
-window.change = function change(text) {
+function change(text) {
     const stuff = buildLetters(text);
     goals.width = stuff.width;
     goals.height = stuff.height;
     goals.points = stuff.points;
 
-    if (Particle.particles.size < goals.points.length * 1.5) {}
+    if (Particle.particles.size > goals.points.length + 250) {
+        let i = 0;
+
+        for (const p of Particle.particles.values()) {
+            if (i >= goals.points.length + 250) {
+                Particle.particles.delete(p.id);
+            }
+
+            i++;
+        }
+    }
+
+    if (Particle.particles.size < goals.points.length + 125) {
+        for (let i = Particle.particles.size; i < goals.points.length + 250; i++) new Particle();
+    }
 }
+
+change("Press enter to change the text!");
 
 function drawLoop() {
     requestAnimationFrame(drawLoop);
@@ -100,16 +147,19 @@ function drawLoop() {
 
     ctx.fillStyle = "#FFFFFF";
 
+    const scale = uiScale();
+
     ctx.save();
     ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(scale, scale);
 
     let i = 0;
     Particle.particles.forEach(p => {
         if (i >= goals.points.length) {
-            const a = Math.PI * 2 * (p.id - goals.points.length) / (Particle.particles.size - goals.points.length) + performance.now() / 1000;
-            const variance = Math.sin(performance.now() / 2000 + p.id / 10) * .05 + 1;
-            p.update(Math.cos(a) * goals.width / 1.75 * variance, Math.sin(a) * goals.height / .75 * variance);
+            p.isIdle = true;
+            p.idlyUpdate(canvas.width / scale, canvas.height / scale);
         } else {
+            p.isIdle = false;
             const goal = goals.points[i % goals.points.length];
             p.update(goal.x - goals.width / 2, goal.y - goals.height / 2);
         }
@@ -123,3 +173,9 @@ function drawLoop() {
 }
 
 drawLoop();
+
+window.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+        change(prompt("Enter the text to display:"));
+    }
+});

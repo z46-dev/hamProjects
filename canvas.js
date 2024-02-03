@@ -15,3 +15,11 @@ resize();
 export function lerp(a, b, t) {
     return a + (b - a) * t;
 }
+
+export function uiScale() {
+    if (canvas.height > canvas.width) {
+        return canvas.height / 1080;
+    }
+
+    return canvas.width / 1920;
+}

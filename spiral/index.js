@@ -1,4 +1,4 @@
-import { canvas, ctx, lerp } from "../canvas.js";
+import { canvas, ctx, lerp, uiScale } from "../canvas.js";
 
 const particles = {};
 let id = 0,
@@ -9,11 +9,11 @@ let id = 0,
 
 class Particle {
     constructor() {
-        this.x = innerWidth / 2;
-        this.y = innerHeight / 2;
+        this.x = canvas.width / 2 / uiScale();
+        this.y = canvas.height / 2 / uiScale();
         this.orbit = orbit;
         this.distance = 0;
-        this.size = 10 - (id / particleAmount) * 5;
+        this.size = 15 - (id / particleAmount) * 5;
         this.alpha = Math.random() * .5 + .5;
         this.color = 0;
         this.angle = Math.PI * 2 / (particleAmount * .25) * id;
@@ -22,11 +22,11 @@ class Particle {
 
         orbit += orbitStep;
     }
-    move() {
-        this.distance = lerp(this.distance, this.orbit * 17.5, .01);
+    move(width, height) {
+        this.distance = lerp(this.distance, this.orbit * 30, .01);
         this.angle += .01;
-        this.x = innerWidth / 2 + Math.cos(this.angle) * this.distance;
-        this.y = innerHeight / 2 + Math.sin(this.angle) * this.distance;
+        this.x = width / 2 + Math.cos(this.angle) * this.distance;
+        this.y = height / 2 + Math.sin(this.angle) * this.distance;
         this.color = (hue + (.5 * this.id)) % 360;
     }
     draw() {
@@ -49,11 +49,21 @@ function drawLoop() {
     requestAnimationFrame(drawLoop);
     ctx.fillStyle = "rgba(0, 0, 0, .1)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const scale = uiScale();
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    const width = canvas.width / scale;
+    const height = canvas.height / scale;
+
     for (const id in particles) {
         const particle = particles[id];
-        particle.move();
+        particle.move(width, height);
         particle.draw();
     }
+
+    ctx.restore();
 
     hue = (hue + (Math.sin(performance.now() / 1000) * .5 + .5)) % 360;
 }

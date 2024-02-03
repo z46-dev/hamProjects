@@ -1,9 +1,9 @@
-import { canvas, ctx, lerp } from "../canvas.js";
+import { canvas, ctx, lerp, uiScale } from "../canvas.js";
 
 // Hexagon grid
 const gridWidth = 16;
 const gridHeight = 16;
-const hexSize = 16;
+const hexSize = 32;
 
 const lines = new Set();
 
@@ -59,7 +59,7 @@ class Line {
         let index = -1,
             d = Infinity;
 
-        for (let i = 0; i < 6; i ++) {
+        for (let i = 0; i < 6; i++) {
             const that = this.sideOf(them, i);
 
             const xDiff = that.x - us.x;
@@ -91,7 +91,7 @@ class Line {
     }
 
     move() {
-        this.t += .0334;
+        this.t += .05;
         if (this.t > 1 && !this.moved) {
             lines.delete(this);
             if (this.k === 0) {
@@ -135,7 +135,7 @@ class Line {
             if (newLine.endPoint > 5) {
                 newLine.endPoint = 0;
             }
-    
+
             if (newLine.endPoint < 0) {
                 newLine.endPoint = 5;
             }
@@ -147,23 +147,40 @@ class Line {
     }
 }
 
+let hue = 0;
+
 function draw() {
     requestAnimationFrame(draw);
+    ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(0, 0, 0, .025)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "white";
+    const scale = uiScale();
+    const width = canvas.width / scale;
+    const height = canvas.height / scale;
+
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = "hsl(" + (hue % 360) + ", 100%, 50%)";
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = ctx.fillStyle;
+
     lines.forEach(line => {
         line.draw();
         line.move();
     });
 
-    if (lines.size < 300 && Math.random() > .25) {
-        const x = ((Math.random() * gridWidth / 2) | 0) + Math.round(gridWidth / 4);
-        const y = ((Math.random() * gridHeight / 2) | 0) + Math.round(gridHeight / 4);
+    if (lines.size < 1000) {
+        const x = (Math.random() * width / gridWidth / 2 | 0) - gridWidth;
+        const y = (Math.random() * height / gridHeight / 2 | 0) - gridHeight / 2;
 
         lines.add(new Line(x, y));
     }
+
+    hue += .01;
+
+    ctx.restore();
 }
 
 draw();
