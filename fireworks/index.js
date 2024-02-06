@@ -24,14 +24,14 @@ class Particle {
         Particle.particles.set(this.id, this);
     }
 
-    update() {
+    update(height) {
         this.x += this.velocityX;
         this.y += this.velocityY;
         this.fade -= .005 * (Math.sin(this.antiGravity * Math.PI * 2) * .5 + .5);
 
         this.velocityY += Particle.gravity - this.antiGravity;
 
-        if (this.y > canvas.height || this.fade < .01) {
+        if (this.y > height || this.fade < .01) {
             Particle.particles.delete(this.id);
         }
     }
@@ -77,10 +77,10 @@ class Firework {
 
         this.velocityLength *= .95;
 
-        if (this.velocityLength < .05) {
+        if (this.velocityLength < .1) {
             Firework.fireworks.delete(this.id);
 
-            switch (Math.random() * 3 | 0) {
+            switch (Math.random() * 4 | 0) {
                 case 0:
                     Firework.basicExplosion(this);
                     break;
@@ -89,6 +89,13 @@ class Firework {
                     break;
                 case 2:
                     Firework.delayedExplosion(this);
+                    break;
+                case 3:
+                    if (this.isChild) {
+                        Firework.basicExplosion(this);
+                    } else {
+                        Firework.fragExplosion(this);
+                    }
                     break;
             }
         }
@@ -164,6 +171,21 @@ class Firework {
             }, i * delay);
         }
     }
+
+    /**
+     * @param {Firework} firework 
+     */
+    static fragExplosion(firework) {
+        const count = 5;
+        for (let i = 0; i < count; i++) {
+            const newFirework = new Firework();
+            newFirework.x = firework.x;
+            newFirework.y = firework.y;
+            newFirework.velocityDirection = Math.PI * 2 / count * i;
+            newFirework.velocityLength = 8;
+            newFirework.isChild = true;
+        }
+    }
 }
 
 function drawLoop() {
@@ -181,14 +203,15 @@ function drawLoop() {
         firework.draw();
     });
 
+    const height = canvas.height / scale;
     Particle.particles.forEach(particle => {
-        particle.update();
+        particle.update(height);
         particle.draw();
     });
 
     ctx.restore();
 
-    if (Firework.fireworks.size < 8 && Math.random() < .1) {
+    if (Firework.fireworks.size < 4 && Math.random() < .1) {
         new Firework();
     }
 }
